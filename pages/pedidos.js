@@ -26,7 +26,9 @@ const OBTENER_PEDIDOS = gql`
 `
     const pedidos = () => {
     const {data, loading, error} = useQuery(OBTENER_PEDIDOS);
+
     if(loading) return "cargando .... "
+    console.log(data);
     const{obtenerPedidosVendedor} = data;
         return (
         <>
@@ -46,7 +48,7 @@ const OBTENER_PEDIDOS = gql`
                         :
                     (
                         obtenerPedidosVendedor.map(pedido => (
-                            <Pedido key = {pedido.id} pedido = {pedido}/>
+                            <Pedido key = {pedido.id}  pedido={pedido}/>
                         ))
                     )
                 }

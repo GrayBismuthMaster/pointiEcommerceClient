@@ -10,8 +10,8 @@ const Sidebar = () => {
               <p className="text-white text-2xl font-black">CRM CLIENTES</p>  
             </div>
             <nav className="mt-5 list-none">
-                <li className = {router.pathname === "/" ? "bg-blue-800 p-2 ":"p-2"}>
-                    <Link href = "/">
+                <li className = {router.pathname === "/home" ? "bg-blue-800 p-2 ":"p-2"}>
+                    <Link href = "/home">
                         <a className="text-white block">     
                             Clientes
                         </a>

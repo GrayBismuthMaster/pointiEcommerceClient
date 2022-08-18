@@ -22,6 +22,7 @@ const OBTENER_PEDIDOS = gql`
     }
 `
 const Pedido = ({pedido}) => {
+    console.log(pedido);
     const {id, total ,cliente : {nombre, apellido, telefono, email}, cliente, estado} = pedido;
     const [actualizarPedido] = useMutation(ACTUALIZAR_PEDIDO);
     const [eliminarPedido] = useMutation(ELIMINAR_PEDIDO, {

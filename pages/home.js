@@ -47,15 +47,10 @@ const OBTENER_CLIENTES_USUARIO = gql`
                     cliente = {cliente}
                   />
                 ))}
-    
-              
-              
             </tbody>
           </table>
         </Layout>
-  
       </div>
-  
     );
   } 
   

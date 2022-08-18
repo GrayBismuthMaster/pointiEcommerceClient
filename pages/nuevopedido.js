@@ -44,9 +44,6 @@ const NuevoPedido = () => {
   const [mensaje, setMensaje] = useState(null);
   //Utilizar context y extraer sus funciones
   const pedidoContext = useContext(PedidoContext);
-  // console.log(pedidoContext);
-  // const {holaMundoEnUseReducer} = pedidoContext
-  // holaMundoEnUseReducer();
   const {cliente, productos, total} = pedidoContext;
  
   const { id} = cliente;
