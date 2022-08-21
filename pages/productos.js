@@ -15,7 +15,6 @@ const OBTENER_PRODUCTOS = gql`
 `
 const productos = () => {
     const {data, loading, error} = useQuery(OBTENER_PRODUCTOS);
-    
     if (loading) return "cargando";
     console.log(data);
     return (

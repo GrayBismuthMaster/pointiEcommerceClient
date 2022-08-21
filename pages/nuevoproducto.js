@@ -6,6 +6,7 @@ import * as Yup from 'yup';
 import {gql, useMutation} from '@apollo/client'
 import Swal from 'sweetalert2'
 import router from 'next/router';
+import { useAddMessage, useMessages } from '../graphql/hooks';
 
 const NUEVO_PRODUCTO = gql`
     mutation nuevoProducto($input : ProductoInput){
@@ -29,11 +30,19 @@ const OBTENER_PRODUCTOS = gql`
 `
 
 const NuevoProducto = () => {
+    
+    //CUSTOMHOOK PARA MENSAJE DE NUEVO PRODUCTO AGREGADO
+    const { addMessage } = useAddMessage();
+    
+
     //Mutation
     const [nuevoProducto] = useMutation(NUEVO_PRODUCTO, {
         update(cache,{data:{nuevoProducto}}){
             //OBtener objeto de cache
             const {obtenerProductos} = cache.readQuery({query: OBTENER_PRODUCTOS});
+            console.log("Obtener productos desde update", obtenerProductos);
+            
+            
             //Reescribir cache
             cache.writeQuery({
                 query : OBTENER_PRODUCTOS,
@@ -63,26 +72,49 @@ const NuevoProducto = () => {
         }),
         onSubmit : async valores =>{
              const {nombre, existencia, precio} = valores;
-            try{
-                const {data} = await nuevoProducto({
-                    variables : {
-                        input : {
-                            nombre,
-                            existencia, 
-                            precio
+             
+             if(window !== undefined){
+                await addMessage(`Se agregó el producto ${nombre}`);
+                // const message = await addMessage(`Se agregó el producto ${nombre}`);
+                // console.log("Mensaje desde onSubmit", message);
+                // if(message.id !== undefined){
+
+                    try{
+                        
+                            //MENSAJE DE NUEVO PRODUCTO AGREGADO
+                            const producto = await nuevoProducto({
+                                variables : {
+                                    input : {
+                                        nombre,
+                                        existencia, 
+                                        precio
+                                    }
+                                }
+                            })
+                            console.log("Producto desde nuevo Producto", producto);
+                            
+                            Swal.fire(
+                                'Creado',
+                                'Se creó el producto correctamente',
+                                'success',
+                                ).then(async ()=>{
+                                    await router.push('/productos');
+
+                                }
+            
+                            )
+                                
                         }
-                    }
-                })
-                console.log(data);
-                Swal.fire(
-                    'Creado',
-                    'Se creó el producto correctamente',
-                    'success'
-                )
-                router.push('/productos');
-            } catch (error){
-                console.log(error)
-            }
+                        catch (error){
+                            console.log(error)
+                        }  
+                // }
+             }
+
+            
+            
+            
+            
         }
     })
   return (

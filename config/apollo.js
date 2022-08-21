@@ -1,13 +1,39 @@
 //http link permite conectarse con el servidor de apollo
-import {ApolloClient, createHttpLink, InMemoryCache} from '@apollo/client';
 import fetch from 'node-fetch'
 import {setContext} from 'apollo-link-context'
+import { ApolloClient, HttpLink, InMemoryCache, split } from '@apollo/client';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { Kind, OperationTypeNode } from 'graphql';
+import { createClient as createWsClient } from 'graphql-ws';
+import { getAccessToken } from '../auth/auth';
 
-const httpLink = createHttpLink({
-        uri: 'http://localhost:4000',
-        fetch
-})
+const httpLink = new HttpLink({
+    uri: 'http://localhost:9000/graphql',
+  });
+  
 
+const wsLink =
+    typeof window !== 'undefined'
+        
+        ?
+
+    new GraphQLWsLink(createWsClient({
+        url: 'ws://localhost:9000/graphql',
+        // connectionParams: () => ({ accessToken: getAccessToken() }),
+    }))
+
+        :
+    
+    null
+
+
+function isSubscription({ query }) {
+    const definition = getMainDefinition(query);
+    return definition.kind === Kind.OPERATION_DEFINITION
+        && definition.operation === OperationTypeNode.SUBSCRIPTION;
+}
+  
 const authLink = setContext((_,{headers}) => {
     //Leer el storage almacenado
     const token = localStorage.getItem('token');
@@ -21,7 +47,16 @@ const authLink = setContext((_,{headers}) => {
 const client = new ApolloClient({
     сonnectToDevTools: true,
     cache: new InMemoryCache(),
-    link: authLink.concat(httpLink)
+    link: 
+    typeof window !== 'undefined'
+        
+        ?
+
+    split(isSubscription, wsLink, authLink.concat(httpLink) )
+
+        :
+
+    null
 });
 
 export default client

@@ -1,6 +1,9 @@
 import {ApolloProvider} from '@apollo/client';
 import client from '../config/apollo'
 import PedidoState from '../context/pedidos/PedidoState';
+//import css for next
+import '../styles/global.css';
+
 const MyApp = ({Component, pageProps}) => {
     return(
         <ApolloProvider client={client}>

@@ -5,15 +5,16 @@ import * as Yup from 'yup'
 import {gql, useMutation} from '@apollo/client'
 import {useRouter} from 'next/router'
 import Link from 'next/link';
-const AUTENTICAR_USUARIO = gql`
-    mutation autenticarUsuario($input:AutenticarInput)
-    {
-        autenticarUsuario(input:$input)
-        {
-            token
-        }
-    }
-`;
+const API_URL = 'http://localhost:9000'
+// const AUTENTICAR_USUARIO = gql`
+//     mutation autenticarUsuario($input:AutenticarInput)
+//     {
+//         autenticarUsuario(input:$input)
+//         {
+//             token
+//         }
+//     }
+// `;
 
 const Login = () => {
     //Routing 
@@ -24,7 +25,7 @@ const Login = () => {
 
     //Mutation para crear nuevos usuarios en Apollo
     //Array Destructuring para el retorno del mutation de gql
-    const [autenticarUsuario] = useMutation(AUTENTICAR_USUARIO);
+    // const [autenticarUsuario] = useMutation(AUTENTICAR_USUARIO);
 
     const formik = useFormik({
         initialValues: {
@@ -40,27 +41,25 @@ const Login = () => {
             const {email,password} =valores
             console.log(valores)
             try {
-                const {data} = await autenticarUsuario({
-                    variables: {
-                        input: {
-                            email,
-                            password
-                        }
-                    }
-                })
-                console.log(data)
-                //Usuario autenticado correctamente
-                guardarMensaje('Autenticando...');
-                //En data está el retorno del mutation 
-                //Guardar el token en localStorage
-                const {token} = data.autenticarUsuario;
-                localStorage.setItem('token',token)
-                //redireccionar hacia clientes
-                setTimeout(()=>{
-                    guardarMensaje(null)
-                    router.push('/home')
-                }, 3000)
-               //Redirigir Usuario para iniciar sesión
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                      'content-type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                  });
+                  if (response.ok) {
+                    console.log(response)
+                    const { token } = await response.json();
+                    // localStorage.setItem(ACCESS_TOKEN_KEY, token);
+                    localStorage.setItem('token',token)
+                    //redireccionar hacia clientes
+                    setTimeout(()=>{
+                        guardarMensaje(null)
+                        router.push('/home')
+                    }, 3000)
+                  }
+                  return null;
                
             } catch (error) {
                 console.log(error)
