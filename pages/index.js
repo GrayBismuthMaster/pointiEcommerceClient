@@ -4,9 +4,7 @@ import QuienesSomos from "../components/LandingPage/QuienesSomos/QuienesSomos";
 import Servicios from "../components/LandingPage/Servicios/Servicios";
 import Contacto from '../components/LandingPage/Contacto/Contacto'
 import Footer from "../components/LandingPage/Footer/Footer";
-import Link from 'next/link'
   function Index() {
-  
     return(
       <>
           <NavBar/>

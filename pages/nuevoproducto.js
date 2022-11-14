@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -7,6 +7,7 @@ import {gql, useMutation} from '@apollo/client'
 import Swal from 'sweetalert2'
 import router from 'next/router';
 import { useAddMessage, useMessages } from '../graphql/hooks';
+import { useS3Upload } from '../hooks/useS3Upload';
 
 const NUEVO_PRODUCTO = gql`
     mutation nuevoProducto($input : ProductoInput){
@@ -28,12 +29,29 @@ const OBTENER_PRODUCTOS = gql`
         }
     }
 `
-
+const S3UPLOAD = gql`
+  mutation($filename: String!, $filetype: String!) {
+    signS3(filename: $filename, filetype: $filetype) {
+      url
+      signedRequest
+    }
+  }
+`;
 const NuevoProducto = () => {
     
+
     //CUSTOMHOOK PARA MENSAJE DE NUEVO PRODUCTO AGREGADO
     const { addMessage } = useAddMessage();
+    //CAMBIO DE SOMBRA PARA DRAG AND DROP
+    const [classStateBG, setClassStateBG] = useState(false);
     
+    //CUSTOM HOOK PARA S3 UPLOAD
+    const { s3State, setS3State, formatFilename, uploadToS3} = useS3Upload();
+        //mutation
+        const [signS3] = useMutation(S3UPLOAD);
+
+    //ESTADOS DE IMAGENES SUBIDAS
+    const [uploadedImages, setUploadedImages] = useState([]);
 
     //Mutation
     const [nuevoProducto] = useMutation(NUEVO_PRODUCTO, {
@@ -74,12 +92,27 @@ const NuevoProducto = () => {
              const {nombre, existencia, precio} = valores;
              
              if(window !== undefined){
-                await addMessage(`Se agregó el producto ${nombre}`);
-                // const message = await addMessage(`Se agregó el producto ${nombre}`);
-                // console.log("Mensaje desde onSubmit", message);
-                // if(message.id !== undefined){
 
-                    try{
+                //UPLOAD FILE 
+                
+                const response = await signS3({
+                    variables: {
+                        filename: formatFilename(s3State.file.name),
+                        filetype: s3State.file.type
+                    }
+                });
+
+                const { signedRequest, url } = response.data.signS3;
+                const resUpload = await uploadToS3(s3State.file, signedRequest);
+
+                console.log("RESPUESTA DE S3", resUpload, "URL", url);
+                //END UPLOAD FILE 
+                if(url){
+                        
+                    const message = await addMessage(`Se agregó el producto ${nombre}`);
+                    console.log("Mensaje desde onSubmit", message);
+                    if(message.id !== undefined){
+                        try{
                         
                             //MENSAJE DE NUEVO PRODUCTO AGREGADO
                             const producto = await nuevoProducto({
@@ -87,7 +120,8 @@ const NuevoProducto = () => {
                                     input : {
                                         nombre,
                                         existencia, 
-                                        precio
+                                        precio,
+                                        imagen : url
                                     }
                                 }
                             })
@@ -99,7 +133,7 @@ const NuevoProducto = () => {
                                 'success',
                                 ).then(async ()=>{
                                     await router.push('/productos');
-
+    
                                 }
             
                             )
@@ -107,8 +141,13 @@ const NuevoProducto = () => {
                         }
                         catch (error){
                             console.log(error)
-                        }  
-                // }
+                        } 
+                     
+                    }
+                    
+                }
+                
+               
              }
 
             
@@ -117,6 +156,72 @@ const NuevoProducto = () => {
             
         }
     })
+
+    //EVENTOS PARA EL UPLOAD DE LOS ARCHIVOS
+        //ESTADO DE LA LISTA DE IMAGENES
+        const [fileList, setFileList] = useState([]);
+
+        //REFERENCIA
+        const wrapperRef = useRef(null);
+
+    const handleDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // console.log(e);
+        wrapperRef.current.classList.add('bg-black-800')
+        // console.log("Drageado encima");
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // console.log(e);
+        // wrapperRef.current.classList.remove('bg-black-800')
+        // console.log("Deja");
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // console.log(e);
+        // wrapperRef.current.classList.add("bg-black-800")
+        setClassStateBG(true);
+        // console.log("Deja");
+    };
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // console.log(e);
+        // wrapperRef.current.classList.remove('bg-black-800')
+        console.log(e.dataTransfer)
+        let newFile = e.dataTransfer.files[0];
+        setS3State({...s3State, file : newFile, name : newFile.name});
+
+        formik.setFieldValue("file", newFile);
+
+        if (newFile) {
+            const updatedList = [...fileList, newFile];
+            setFileList(updatedList);
+            // onFileChange(updatedList);
+        }
+        setClassStateBG(false);
+        setUploadedImages([...uploadedImages, {name : newFile.name}])
+    };
+
+    const onFileDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Se dejo aca");
+        const newFile = e.target.files[0];
+        setS3State({...s3State, file : newFile, name : newFile.name});
+        formik.setFieldValue("file", newFile);
+
+        if (newFile) {
+            const updatedList = [...fileList, newFile];
+            setFileList(updatedList);
+            // onFileChange(updatedList);
+        }
+    }
   return (
     <Layout>
         <h1 className = "text-2xl text-gray-800 font-light ">Crear nuevo producto</h1>
@@ -125,6 +230,10 @@ const NuevoProducto = () => {
                     <form
                         className='bg-white rounded shadow-md px-8 pt-6 pb-8 mb-4'
                         onSubmit={formik.handleSubmit}
+                        onDragEnter={(e)=>{e.preventDefault();e.stopPropagation()}}
+                        onDrag={(e)=>{e.preventDefault();e.stopPropagation()}}
+                        onDragEnd={(e)=>{e.preventDefault();e.stopPropagation()}}
+                        onDragLeave={(e)=>{e.preventDefault();e.stopPropagation()}}
                     >
                         <div className="mb-4">
                                 <label className='block text-gray-700 text-sm font-bold mb-2' htmlFor="nombre">
@@ -195,12 +304,35 @@ const NuevoProducto = () => {
                                 </div>
                             ): null
                         }
+
+                        <div className="flex justify-center items-center w-full" onChange={onFileDrop} ref={wrapperRef} onDragEnter={(e)=>handleDragEnter(e)} onDragOver={(e)=>handleDragOver(e)} onDragLeave={(e)=>handleDragLeave(e)} onDrop={(e)=>handleDrop(e)} >
+                         
+                            <label htmlFor="dropzone-file" className={classStateBG ? "flex flex-col justify-center items-center w-full h-64 bg-gray-50 rounded-lg border-2 border-gray-300 border-dashed cursor-pointer dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600 bg-gray-800" : "flex flex-col justify-center items-center w-full h-64 bg-gray-50 rounded-lg border-2 border-gray-300 border-dashed cursor-pointer dark:hover:bg-bray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"} >
+                                <div className="flex flex-col justify-center items-center pt-5 pb-6">
+                                    <svg aria-hidden="true" className="mb-3 w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                    <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG or GIF (MAX. 800x400px)</p>
+                                </div>
+                                <input id="dropzone-file" type="file" className="hidden" onChange={onFileDrop}  />
+                           
+                            </label>
+                        </div> 
+
                         <input
                             type='submit'
                             className='bg-gray-800 w-full mt-5 p-2 text-white uppercase font-bold hover:bg-gray-900'
                             value="Agregar Producto"
                         />
                     </form>
+                    <div>
+                        {uploadedImages.map((image)=>{
+                            return (
+                                <>
+                                    {image.name}
+                                </>       
+                            )
+                        })}
+                    </div>
                 </div>
             </div>
     </Layout>
